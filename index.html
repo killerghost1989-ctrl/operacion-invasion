@@ -1,0 +1,28 @@
+<!DOCTYPE html><html lang="es"><head><meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no,viewport-fit=cover">
+<title>Operación Última Colonia</title>
+<style>
+html,body{margin:0;height:100%;background:#050a12;color:#cfe;font-family:system-ui,sans-serif;overflow:hidden;touch-action:none;user-select:none}
+canvas{position:fixed;inset:0;width:100%;height:100%}
+.ov{position:fixed;inset:0;display:none;flex-direction:column;align-items:center;justify-content:center;gap:10px;background:rgba(5,10,18,.93);text-align:center}
+#menu{display:flex}
+h1{margin:0;font-size:clamp(22px,6vw,44px);letter-spacing:3px;color:#3df;text-shadow:0 0 14px #08f}
+h1 small{display:block;font-size:.4em;color:#f54;letter-spacing:6px}
+button,input{font:inherit;padding:10px 18px;border-radius:6px;border:1px solid #3df;background:#0a1a2a;color:#cfe}
+button{cursor:pointer}button:active{background:#145}
+input{text-transform:uppercase;width:110px;text-align:center;letter-spacing:4px}
+#code{font-size:40px;letter-spacing:8px;color:#4f8}
+.row{display:flex;gap:8px}
+#rv{position:fixed;right:24px;bottom:24px;width:90px;height:90px;border-radius:50%;display:none;background:#0a3a1a;border-color:#4f8;font-size:13px}
+#snd{position:fixed;right:8px;top:30px;padding:4px 8px;font-size:14px;background:#0008}
+</style></head><body>
+<canvas id="c"></canvas>
+<button id="snd">🔊</button><button id="rv">REVIVIR</button>
+<div id="menu" class="ov"><h1>OPERACIÓN<br>ÚLTIMA COLONIA<small>COOPERATIVO ONLINE</small></h1>
+<button id="bc">CREAR SALA (soy el CORONEL)</button>
+<div class="row"><input id="ci" maxlength="4" placeholder="CÓDIGO"><button id="bj">UNIRME (soy VICKY)</button></div>
+<div id="msg" style="color:#f66"></div></div>
+<div id="lobby" class="ov"><div>CÓDIGO DE SALA</div><div id="code"></div>
+<div>Comparte el código con tu compañero</div><div id="who"></div><button id="br">¡LISTO!</button></div>
+<div id="over" class="ov"><h1 style="color:#f54">REACTOR DESTRUIDO</h1><div id="stats"></div><button id="ba">JUGAR DE NUEVO</button></div>
+<script src="/socket.io/socket.io.js"></script><script src="game.js"></script></body></html>
