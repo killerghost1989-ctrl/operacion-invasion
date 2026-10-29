@@ -1,6 +1,8 @@
 // OPERACIÓN ÚLTIMA COLONIA v0.2 - cliente (HTML5 Canvas). El servidor manda; aquí solo se dibuja.
 const $=id=>document.getElementById(id),cv=$('c'),g=cv.getContext('2d'),W=1600,H=1000,CX=800,CY=500;
 const sock=io();
+const WN=['RIFLE','ESCOPETA','PRECISIÓN','ENERGÍA'],UN=['💥 MÁS DAÑO','⚡ CADENCIA','👟 VELOCIDAD','❤️ VIDA','🛡️ REPARAR REACTOR'];
+let weapon=0;
 let me=null,S=null,pl={},ents={},pjs={},shots=[],parts=[],rings=[],bq=[],cur=null,snd=true,ac,cw,ch,dpr=devicePixelRatio||1,shake=0,lastT=0,wasConn=true;
 function rs(){cw=cv.width=innerWidth*dpr;ch=cv.height=innerHeight*dpr}rs();onresize=rs;
 function beep(f,d,v,ty){if(!snd)return;try{ac=ac||new AudioContext();const o=ac.createOscillator(),a=ac.createGain();o.type=ty||'square';o.frequency.value=f;a.gain.value=v||.03;o.connect(a);a.connect(ac.destination);o.start();o.stop(ac.currentTime+d)}catch(e){}}
@@ -46,6 +48,12 @@ function fxEvent(f){ // [x,y,radio,tipo]  0=explosión 1=impacto de jefe 2=ácid
 }
 sock.on('s',s=>{
   S=s;if(!me)return;const now=performance.now();
+  const my=s.p.find(p=>p[0]===me),up=s.st==='break'&&s.w>0&&s.uw===s.w;
+  $('upgrades').style.display=up?'flex':'none';
+  if(up){$('upinfo').textContent=my&&my[9]?'¡Mejora elegida! Esperando compañero...':'Elige una mejora para esta oleada';
+    for(const b of $('upbuttons').children)b.disabled=!!(my&&my[9]);}
+  if(my){weapon=my[8];$('weapon').textContent='🔫 '+WN[weapon];}
+
   for(const p of s.p){const o=pl[p[0]]||(pl[p[0]]={x:p[1],y:p[2],aim:0});o.tx=p[1];o.ty=p[2];o.hp=p[3];o.dn=p[4];o.rd=p[5];o.on=p[6];o.rp=p[7]}
   const seen={};
   for(const e of s.e){seen[e[0]]=1;let o=ents[e[0]];
@@ -66,6 +74,8 @@ sock.on('s',s=>{
 $('bc').onclick=()=>{beep(300,.05);sock.emit('create')};
 $('bj').onclick=()=>{beep(300,.05);sock.emit('join',$('ci').value)};
 $('br').onclick=()=>sock.emit('ready');$('ba').onclick=()=>sock.emit('again');
+$('weapon').onclick=()=>sock.emit('weapon',(weapon+1)%WN.length);
+for(let i=0;i<UN.length;i++){const b=document.createElement('button');b.textContent=UN[i];b.onclick=()=>sock.emit('upgrade',i);$('upbuttons').appendChild(b)}
 $('snd').onclick=()=>{snd=!snd;$('snd').textContent=snd?'🔊':'🔇'};
 
 // ---- Controles: joystick táctil izquierdo (o WASD/flechas) y botón de revivir ----
@@ -227,7 +237,7 @@ function hud(t,cx,cy,vw,vh){
   g.fillStyle='#4f8';g.fillText('VICKY'+(P('VICKY')<=0?' ☠':''),8,44);bar(8,48,110,8,P('VICKY')/100,'#4f8');
   g.textAlign='center';g.fillStyle='#8cf';g.fillText('REACTOR '+S.r+'%',iw/2,16);bar(iw/2-80,20,160,8,rp,rp>.5?'#3df':'#f44');
   g.fillStyle='#cfe';g.fillText('OLEADA '+S.w+' · ENEMIGOS '+S.n+(S.st=='break'?' · SIGUIENTE EN '+S.nx+'s':''),iw/2,46);
-  g.textAlign='right';g.fillStyle=sock.connected?'#4f8':'#f44';g.fillText(sock.connected?'● ONLINE':'● SIN CONEXIÓN',iw-8,16);
+  g.fillStyle='#fff';g.textAlign='center';g.font='bold 11px sans-serif';g.fillText('ARMA: '+WN[weapon],iw/2,60);g.textAlign='right';g.fillStyle=sock.connected?'#4f8':'#f44';g.fillText(sock.connected?'● ONLINE':'● SIN CONEXIÓN',iw-8,16);
   // barras de jefe (máx. 2)
   let by=62;const jefes=Object.values(ents).filter(o=>o.t>=5).sort((a,b)=>b.mx-a.mx).slice(0,2);
   for(const o of jefes){const w=Math.min(iw*.5,300),V=TV[o.t];g.fillStyle=V.c2;g.font='bold 11px sans-serif';g.textAlign='center';g.fillText('☠ '+V.n,iw/2,by+8);

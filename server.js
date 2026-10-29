@@ -8,6 +8,8 @@ const app=express();
 app.use(express.static(__dirname+'/public',{maxAge:0,setHeaders:res=>res.setHeader('Cache-Control','no-cache')}));
 const srv=http.createServer(app),io=new Server(srv);
 const W=1600,H=1000,CX=800,CY=500,DT=1/30,rooms={};
+const WEAPONS=[{n:'RIFLE',d:12,cd:.14,range:320,pellets:1,spread:0},{n:'ESCOPETA',d:10,cd:.65,range:190,pellets:5,spread:.22},{n:'PRECISIÓN',d:42,cd:.85,range:560,pellets:1,spread:0},{n:'ENERGÍA',d:8,cd:.085,range:290,pellets:1,spread:0}];
+const UPGRADES=['daño','cadencia','velocidad','vida','reactor'];
 const SIDES=['NORTE','SUR','OESTE','ESTE'];
 
 // ---------------------------------------------------------------------
@@ -55,10 +57,10 @@ const FR=[.15,.5,.85]; // 3 puntos de aparición por lado = 12 puntos alrededor 
 const R=(a,b)=>a+Math.random()*(b-a);
 const say=(r,t)=>io.to(r.id).emit('ev',t);
 function newCode(){let c;do{c=Math.random().toString(36).slice(2,6).toUpperCase()}while(rooms[c]);return c}
-function newPlayer(role,s){return{role,sock:s.id,tok:Math.random().toString(36).slice(2),x:0,y:0,hp:100,dn:0,ix:0,iy:0,rv:false,rp:0,cd:0,ready:false,on:true}}
+function newPlayer(role,s){return{role,sock:s.id,tok:Math.random().toString(36).slice(2),x:0,y:0,hp:100,dn:0,ix:0,iy:0,rv:false,rp:0,cd:0,ready:false,on:true,weapon:0,up:{d:0,c:0,v:0,h:0},selected:false,kills:0}}
 function reset(r){
-  Object.assign(r,{st:'lobby',wave:0,reactor:100,en:[],cola:[],pj:[],fx:[],sides:[0],avs:1,tw:0,toSpawn:0,sp:0,nx:0,sh:[],kills:0,nid:1,al:0});
-  for(const p of Object.values(r.pl)){p.hp=100;p.dn=0;p.rp=0;p.ready=false;p.x=CX+(p.role=='CORONEL'?-80:80);p.y=CY+90}
+  Object.assign(r,{st:'lobby',wave:0,reactor:100,en:[],cola:[],pj:[],fx:[],sides:[0],avs:1,tw:0,toSpawn:0,sp:0,nx:0,sh:[],kills:0,nid:1,al:0,upgradeWave:0,upgradeCount:0});
+  for(const p of Object.values(r.pl)){p.weapon=0;p.up={d:0,c:0,v:0,h:0};p.selected=false;p.kills=0;p.hp=100;p.dn=0;p.rp=0;p.ready=false;p.x=CX+(p.role=='CORONEL'?-80:80);p.y=CY+90}
 }
 function hurt(r,p,d){
   if(p.hp<=0)return;p.hp-=d;
@@ -106,7 +108,7 @@ function planOleada(r){ // elige por cuáles lados llegará la siguiente oleada
   r.sides=[0,1,2,3].sort(()=>Math.random()-.5).slice(0,n);
 }
 function startWave(r){
-  r.wave++;const w=r.wave;
+  r.wave++;const w=r.wave;for(const p of Object.values(r.pl))p.selected=false;
   r.cola=armarCola(w);r.st='wave';r.sp=w%5==0?2.5:0;r.tw=0;
   say(r,'¡OLEADA '+w+'! '+evento(w)+' — '+(r.sides.length>1?'FRENTES: ':'INVASIÓN POR EL ')+r.sides.map(s=>SIDES[s]).join(', '));
 }
@@ -255,9 +257,10 @@ function boom(r,x,y,rad,dp,dr,kind){ // explosión de área
 function tick(r){
   const ps=Object.values(r.pl),on=ps.some(p=>p.on);
   if(on)r.seen=Date.now();
-  if(r.st=='lobby'){if(ps.length==2&&ps.every(p=>p.ready)){r.st='break';r.nx=5;r.avs=1;planOleada(r);say(r,'PREPÁRENSE, SOLDADOS...')}return}
+  if(r.st=='lobby'){if(ps.length==2&&ps.every(p=>p.ready)){r.st='break';r.upgradeWave=0;r.nx=5;r.avs=1;planOleada(r);say(r,'PREPÁRENSE, SOLDADOS...')}return}
   if(r.st=='over'||!on)return; // sala terminada, o nadie conectado: la partida se congela
   if(r.st=='break'){
+    if(r.upgradeWave===r.wave&&r.wave>0&&!ps.every(p=>p.selected||!p.on))return;
     r.nx-=DT;
     if(!r.avs&&r.nx<=6){r.avs=1;const w=r.wave+1;say(r,w%5==0?'¡SE DETECTA UNA AMENAZA GIGANTE EN CAMINO!':'OLEADA '+w+' EN CAMINO — '+evento(w))}
     if(r.nx<=0)startWave(r);
@@ -271,13 +274,23 @@ function tick(r){
       continue;
     }
     let ix=p.ix,iy=p.iy;const l=Math.hypot(ix,iy);if(l>1){ix/=l;iy/=l}
-    p.x=Math.min(W-20,Math.max(20,p.x+ix*170*DT));p.y=Math.min(H-20,Math.max(20,p.y+iy*170*DT));
+    p.x=Math.min(W-20,Math.max(20,p.x+ix*(170+15*p.up.v)*DT));p.y=Math.min(H-20,Math.max(20,p.y+iy*(170+15*p.up.v)*DT));
     sacar(p,15);
     p.cd-=DT;
-    if(p.cd<=0){ // disparo automático al enemigo más cercano (hitscan)
-      let b=null,bd=320;
+    if(p.cd<=0){ // armas con selección autoritativa y objetivos próximos
+      const w=WEAPONS[p.weapon]||WEAPONS[0];let b=null,bd=w.range;
       for(const e of r.en){const d=Math.hypot(e.x-p.x,e.y-p.y)-(e.t>=5?e.rad:0);if(d<bd){bd=d;b=e}}
-      if(b){b.hp-=12;p.cd=.14;r.sh.push([p.x|0,p.y|0,b.x|0,b.y|0,p.role=='CORONEL'?0:1])}
+      if(b){
+        const a=Math.atan2(b.y-p.y,b.x-p.x);
+        for(let i=0;i<w.pellets;i++){
+          const angle=a+(w.pellets===1?0:(i-(w.pellets-1)/2)*w.spread);
+          let target=null,dist=w.range;
+          for(const e of r.en){const dx=e.x-p.x,dy=e.y-p.y,proj=dx*Math.cos(angle)+dy*Math.sin(angle),perp=Math.abs(-dx*Math.sin(angle)+dy*Math.cos(angle));if(proj>0&&proj<dist&&perp<e.rad+10){dist=proj;target=e}}
+          if(target){target.hp-=w.d*(1+.15*p.up.d);if(target.hp<=0&&target.lastHit!==p.role){target.lastHit=p.role}}
+          r.sh.push([p.x|0,p.y|0,(p.x+Math.cos(angle)*dist)|0,(p.y+Math.sin(angle)*dist)|0,p.role=='CORONEL'?0:1]);
+        }
+        p.cd=Math.max(.055,w.cd*Math.pow(.88,p.up.c));
+      }
     }
   }
   // aparición progresiva (máximo CFG.MAX_ACTIVOS vivos a la vez)
@@ -309,19 +322,19 @@ function tick(r){
   const vivos=[];let jefeCaido=false;
   for(const e of r.en){
     if(e.hp>0){vivos.push(e);continue}
-    if(!e.sui)r.kills++;
+    if(!e.sui){r.kills++;if(r.pl[e.lastHit])r.pl[e.lastHit].kills++}
     if(e.t==4){const T=TIPOS[4];boom(r,e.x,e.y,T.area,T.dmg*e.dm,T.rdmg*e.dm,0)}
     if(TIPOS[e.t].jefe){jefeCaido=true;say(r,'¡'+TIPOS[e.t].n+' ELIMINADO!')}
   }
   r.en=vivos;
-  if(jefeCaido)for(const p of ps)if(p.hp>0)p.hp=Math.min(100,p.hp+25);
+  if(jefeCaido)for(const p of ps)if(p.hp>0)p.hp=Math.min(100+20*p.up.h,p.hp+25);
   // fin de oleada
   if(r.st=='wave'&&r.cola.length==0&&r.en.length==0){
     const boss=r.wave%5==0;
-    r.st='break';r.nx=CFG.DESCANSO+(boss?3:0);r.avs=0;r.pj=[];planOleada(r);
+    r.st='break';r.upgradeWave=r.wave;r.nx=CFG.DESCANSO+(boss?3:0);r.avs=0;r.pj=[];planOleada(r);
     r.reactor=Math.min(100,r.reactor+CFG.REPARO+(boss?CFG.REPARO_JEFE:0));
     say(r,'OLEADA SUPERADA — PREPÁRENSE PARA EL SIGUIENTE ATAQUE');
-    for(const p of ps){if(p.hp<=0){p.hp=60;p.dn=0}else p.hp=Math.min(100,p.hp+30)}
+    for(const p of ps){if(p.hp<=0){p.hp=60;p.dn=0}else p.hp=Math.min(100+20*p.up.h,p.hp+30)}
   }
   if(r.reactor<=0||(ps.length==2&&ps.every(p=>p.hp<=0))){r.st='over';r.cola=[];r.pj=[];say(r,'REACTOR DESTRUIDO - FIN DE LA PARTIDA')}
 }
@@ -332,11 +345,11 @@ function snap(r){
   let sd=0;
   if((r.st=='break'&&r.nx<=8)||(r.st=='wave'&&r.tw<5))for(const s of r.sides)sd|=1<<s;
   return{st:r.st,w:r.wave,r:Math.ceil(r.reactor),n:r.en.length+r.cola.length,nx:Math.ceil(r.nx),k:r.kills,
-    p:Object.values(r.pl).map(p=>[p.role,p.x|0,p.y|0,p.hp|0,Math.ceil(p.dn),p.ready?1:0,p.on?1:0,+p.rp.toFixed(1)]),
+    p:Object.values(r.pl).map(p=>[p.role,p.x|0,p.y|0,p.hp|0,Math.ceil(p.dn),p.ready?1:0,p.on?1:0,+p.rp.toFixed(1),p.weapon,p.selected?1:0,p.kills,p.up.d,p.up.c,p.up.v,p.up.h]),
     e:r.en.map(e=>[e.id,e.t,e.x|0,e.y|0,Math.ceil(e.hp),Math.ceil(e.mx),e.st]),
     pj:r.pj.map(q=>[q.id,q.x|0,q.y|0]),
     tg:r.en.filter(e=>e.t==7&&e.st==1).map(e=>[e.ax|0,e.ay|0,e.ar,+Math.max(0,e.stt).toFixed(2),TIPOS[7].area.aviso]),
-    sd,sh:r.sh,fx:r.fx};
+    sd,sh:r.sh,fx:r.fx,uw:r.upgradeWave};
 }
 let f=0;
 function bucle(){
@@ -365,10 +378,21 @@ io.on('connection',s=>{
   });
   s.on('ready',()=>{if(p&&r.st=='lobby')p.ready=true});
   s.on('in',i=>{if(!p||!i)return;p.ix=Math.max(-1,Math.min(1,Number(i.x)||0));p.iy=Math.max(-1,Math.min(1,Number(i.y)||0));p.rv=!!i.rv});
+  s.on('weapon',i=>{if(p&&r&&Number.isInteger(i)&&i>=0&&i<WEAPONS.length)p.weapon=i});
+  s.on('upgrade',i=>{
+    if(!r||!p||r.st!=='break'||r.wave<1||r.upgradeWave!==r.wave||p.selected||!Number.isInteger(i)||i<0||i>4)return;
+    p.selected=true;
+    if(i===0)p.up.d=Math.min(8,p.up.d+1);
+    if(i===1)p.up.c=Math.min(8,p.up.c+1);
+    if(i===2)p.up.v=Math.min(8,p.up.v+1);
+    if(i===3){p.up.h=Math.min(8,p.up.h+1);p.hp=Math.min(100+20*p.up.h,p.hp+20)}
+    if(i===4)r.reactor=Math.min(100,r.reactor+20);
+    say(r,p.role+' eligió '+UPGRADES[i].toUpperCase());
+  });
   s.on('again',()=>{if(r&&r.st=='over')reset(r)});
   s.on('disconnect',()=>{if(p&&p.sock==s.id){p.on=false;p.ix=p.iy=0;p.rv=false;if(r.st=='lobby')p.ready=false}});
 });
 if(require.main===module){
   setInterval(bucle,1000/30);
   srv.listen(process.env.PORT||3000,()=>console.log('Servidor listo en puerto '+(process.env.PORT||3000)));
-}else module.exports={rooms,reset,newPlayer,tick,snap,CFG,TIPOS,OBS,cantidad,armarCola,startWave,planOleada};
+}else module.exports={WEAPONS,rooms,reset,newPlayer,tick,snap,CFG,TIPOS,OBS,cantidad,armarCola,startWave,planOleada};

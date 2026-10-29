@@ -14,10 +14,10 @@ input{text-transform:uppercase;width:110px;text-align:center;letter-spacing:4px}
 #code{font-size:40px;letter-spacing:8px;color:#4f8}
 .row{display:flex;gap:8px}
 #rv{position:fixed;right:24px;bottom:24px;width:90px;height:90px;border-radius:50%;display:none;background:#0a3a1a;border-color:#4f8;font-size:13px}
-#snd{position:fixed;right:8px;top:30px;padding:4px 8px;font-size:14px;background:#0008}
+#weapon{position:fixed;left:8px;bottom:12px;padding:9px;z-index:2;font-size:12px}#upgrades{position:fixed;inset:0;display:none;align-items:center;justify-content:center;flex-direction:column;gap:9px;background:#050a12e8;z-index:3}#upgrades .row{flex-wrap:wrap;justify-content:center;max-width:600px}#upgrades button{min-width:130px}#snd{position:fixed;right:8px;top:30px;padding:4px 8px;font-size:14px;background:#0008}
 </style></head><body>
 <canvas id="c"></canvas>
-<button id="snd">🔊</button><button id="rv">REVIVIR</button>
+<button id="weapon">🔫 RIFLE</button><div id="upgrades"><h2>MEJORA ENTRE OLEADAS</h2><div id="upinfo"></div><div class="row" id="upbuttons"></div></div><button id="snd">🔊</button><button id="rv">REVIVIR</button>
 <div id="menu" class="ov"><h1>OPERACIÓN<br>ÚLTIMA COLONIA<small>COOPERATIVO ONLINE</small></h1>
 <button id="bc">CREAR SALA (soy el CORONEL)</button>
 <div class="row"><input id="ci" maxlength="4" placeholder="CÓDIGO"><button id="bj">UNIRME (soy VICKY)</button></div>
