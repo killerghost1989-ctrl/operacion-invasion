@@ -2,12 +2,15 @@
 Servidor autoritativo Node.js + Socket.IO; cliente HTML5 Canvas (sin instalar nada en los celulares).
 
 ## Novedades de la 0.3
-- Cuatro armas con botón de cambio (Rifle, Escopeta, Precisión, Energía).
-- Elección de una mejora por jugador entre oleadas: daño, cadencia, velocidad, vida o reparación del reactor.
-- Selección y daño de armas validados por servidor.
-- Si un jugador se desconecta, el otro puede continuar tras elegir su mejora.
+- **4 armas, una por soldado** (se elige en la sala de espera y se puede cambiar en cada descanso entre oleadas):
+  FUSIL (el de siempre), ESCOPETA (abanico corto, golpea a varios), FRANCOTIRADOR (largo alcance, atraviesa hasta 3) y
+  LANZAGRANADAS (explosión en área).
+- **Mejoras entre oleadas**: al superar cada oleada, cada soldado elige 1 de 3 cartas (2 personales y 1 de equipo):
+  cadencia, daño, blindaje, botas, alcance, regeneración, reactor reforzado, reparadores, revivir rápido y botiquín.
+  Si no eliges a tiempo, se asigna una al azar al empezar la siguiente oleada.
+- Se pueden ajustar en `server.js`, bloques `ARMAS` y `MEJORAS`.
 
-## Características heredadas de la 0.2
+## Novedades de la 0.2
 - **5 alienígenas**: Rastreador (oleada 1), Cazador (3), Acorazado (5), Escupidor (7) y Explosivo (9).
 - **3 jefes**: Devorador (oleada 5), Reina Ácida (10) y Titán (15). Se repiten más fuertes en 20, 25, 30...
 - **Oleadas progresivas** según la tabla de diseño; desde la 16 se calcula con una fórmula.
@@ -43,7 +46,4 @@ Todo está al inicio de `server.js`, en los bloques `CFG`, `OLEADAS` y `TIPOS`
 (salud, velocidad, daño, tamaño, oleada de aparición y frecuencia de cada alienígena y jefe).
 
 ## Pendiente
-Habilidades (bombardeo orbital / pulso EM), sonidos reales, pausa, anti-trampas más estrictas.
-
-## Precaución
-Sube los archivos conservando `public/index.html` y `public/game.js`. Guarda una copia de la versión anterior. Esta versión requiere pruebas completas en dos dispositivos antes de sustituir la versión estable.
+Habilidades (bombardeo orbital / pulso EM), sonidos reales, pantalla de resumen, pausa, niveles de dificultad.
